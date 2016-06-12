@@ -1,12 +1,12 @@
 class BookStepsController < ApplicationController
   include Wicked::Wizard
-  steps :name, :author
+  steps(*Book.form_steps)
 
   def show
     case step
     when :name
       @book = Book.new
-      session[:book] = nil
+      session[:book] = {}
     else
       @book = Book.new(session[:book])
     end
@@ -14,15 +14,16 @@ class BookStepsController < ApplicationController
   end
 
   def update
+    session[:book] = session[:book].merge(book_params)
+    @book = Book.new(session[:book])
+    return render_wizard if @book.invalid?
+
     case step
     when :name
-      @book = Book.new(book_params)
-      session[:book] = @book.attributes
       redirect_to next_wizard_path
     when :author
-      session[:book] = session[:book].merge(params[:book])
-      @book = Book.new(session[:book])
       @book.save
+      session[:book] = nil
       redirect_to book_path(@book)
     end
   end
@@ -34,6 +35,6 @@ class BookStepsController < ApplicationController
   end
 
   def book_params
-    params.require(:book).permit(:name, :author)
+    params.require(:book).permit(:name, :author).merge(form_step: step)
   end
 end
